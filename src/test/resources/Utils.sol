@@ -12,7 +12,7 @@ library Utils {
     * @param addr address to check
     * @return whether the target address is a contract
     */
-    function isContract(address addr) internal view returns (bool) {
+    function isContract(address addr) public view returns (bool) {
         uint256 size;
         // XXX Currently there is no better way to check if there is a contract in an address
         // than to check the size of the code at that address.
@@ -36,14 +36,14 @@ library Utils {
      * @param _nonce uint256 Presigned transaction number.
      */
     function transferPreSignedHashing(address _token, address _to, uint256 _value, uint256 _fee,
-        uint256 _nonce, bytes _data) public pure returns (bytes32) {
+        uint256 _nonce, bytes _data) internal pure returns (bytes32) {
         /* "48664c16": transferPreSignedHashing(address,address,address,uint256,uint256,uint256) */
         //TODO update
         return keccak256(bytes4(0x48664c16), _token, _to, _value, _fee, _nonce, _data);
     }
 
     function transferPreSignedHashing(address _token, address _to, uint256 _value, uint256 _fee,
-        uint256 _nonce) public pure returns (bytes32) {
+        uint256 _nonce) internal pure returns (bytes32) {
         /* "48664c16": transferPreSignedHashing(address,address,address,uint256,uint256,uint256) */
         return keccak256(bytes4(0x48664c16), _token, _to, _value, _fee, _nonce);
     }
@@ -53,7 +53,7 @@ library Utils {
     * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.
     * @param sig bytes signature, the signature is generated using web3.eth.sign()
     */
-    function recover(bytes32 hash, bytes sig) public pure returns (address) {bytes32 r; bytes32 s; uint8 v;
+    function recover(bytes32 hash, bytes sig) internal pure returns (address) {bytes32 r; bytes32 s; uint8 v;
 
         //Check the signature length
         if (sig.length != 65) {
