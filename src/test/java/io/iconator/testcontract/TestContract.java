@@ -25,22 +25,20 @@ import java.util.concurrent.ExecutionException;
 public class TestContract {
 
     private static TestBlockchain blockchain;
-    private static Contract contract;
+    //private static Contract contract;
     private static Map<String, Contract> contracts;
 
     @BeforeClass
     public static void setup() throws Exception {
-        blockchain = TestBlockchain.start();
+        blockchain = TestBlockchain.run();
         File contractFile1 = Paths.get(ClassLoader.getSystemResource("SafeMath.sol").toURI()).toFile();
         File contractFile2 = Paths.get(ClassLoader.getSystemResource("Utils.sol").toURI()).toFile();
         File contractFile3 = Paths.get(ClassLoader.getSystemResource("eureka.sol").toURI()).toFile();
-        contracts = TestBlockchain.compileInline(contractFile3, contractFile1, contractFile2);
+        contracts = TestBlockchain.compile(contractFile3, contractFile1, contractFile2);
         Assert.assertEquals(7, contracts.size());
         for(String name:contracts.keySet()) {
             System.out.println("Available contract names: " + name);
-        }
-        contract = contracts.get("Eureka");
-    }
+        } }
 
     @After
     public void afterTests() {
@@ -49,7 +47,7 @@ public class TestContract {
 
     @Test
     public void testContract() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
-        DeployedContract dc = blockchain.deploy(TestBlockchain.CREDENTIAL_0, contract);
+        DeployedContract dc = blockchain.deploy(TestBlockchain.CREDENTIAL_0, contracts.get("Eureka"));
         Type t1 = blockchain.callConstant(dc, "name").get(0);
         Type t2 = blockchain.callConstant(dc, "symbol").get(0);
         Type t3 = blockchain.callConstant(dc, "decimals").get(0);
@@ -61,9 +59,7 @@ public class TestContract {
         Assert.assertEquals(new BigInteger("298607040000000000000000000"), t4.getValue());
     }
 
-    @Test
-    public void testMint() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
-        DeployedContract dc = blockchain.deploy(TestBlockchain.CREDENTIAL_0, "Eureka", contracts);
+    private List<Event> mint2(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
         List<String> addresses = new ArrayList<>();
         List<BigInteger> values = new ArrayList<>();
 
@@ -73,8 +69,22 @@ public class TestContract {
         values.add(new BigInteger("20000"));
 
         System.out.println(dc.contractAddress());
-        List<Event> events = blockchain.call(dc, "mint", addresses, values);
+        return blockchain.call(dc, "mint", addresses, values);
+    }
 
+    @Test
+    public void testMint() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        DeployedContract dc = blockchain.deploy(TestBlockchain.CREDENTIAL_0, "Eureka", contracts);
+        List<Event> events = mint2(dc);
         Assert.assertEquals(2, events.size());
+        Assert.assertEquals(new BigInteger("10000"), events.get(0).values().get(2).getValue());
+    }
+
+    @Test
+    public void testBalance() throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+        DeployedContract dc = blockchain.deploy(TestBlockchain.CREDENTIAL_0, "Eureka", contracts);
+        List<Event> events = mint2(dc);
+        List<Type> result = blockchain.callConstant(dc, "balanceOf", TestBlockchain.CREDENTIAL_1.getAddress());
+        Assert.assertEquals(new BigInteger("10000"), result.get(0).getValue());
     }
 }

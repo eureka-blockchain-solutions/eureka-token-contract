@@ -110,7 +110,8 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             if(balances[recipient].length == 0) {
                 createCurrentSnapshotForAddress(recipient);
             }
-            balances[recipient][balances[recipient].length - 1].amount[0].add(amount);
+            Snapshot current = balances[recipient][balances[recipient].length - 1];
+            current.amount[0] = current.amount[0].add(amount);
 
             totalSupply_ = totalSupply_.add(amount);
             require(totalSupply_ <= maxSupply); // enforce maximum token supply
@@ -203,17 +204,13 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     * @return An uint256 representing the amount owned by the passed address.
     */
     function balanceOf(address _owner) public view returns (uint256) {
-        return balanceOf(_owner, 0);
+        return balances[_owner][balances[_owner].length - 1].amount[0];
+        //return balanceOf(_owner, 0, uint64(block.number));
     }
 
     function balanceOf(address _owner, uint8 _fromType) public view returns (uint256) {
-        if(balances[_owner].length == 0) {
-            return 0;
-        }
-        for(uint256 i=balances[_owner].length-1;i>=0;i--) {
-            return balances[_owner][i].amount[_fromType];
-        }
-        return 0;
+        return balances[_owner][balances[_owner].length - 1].amount[_fromType];
+        //return balanceOf(_owner, _fromType, uint64(block.number));
     }
 
     function balanceOf(address _owner, uint8 _fromType, uint64 _fromBlock) public view returns (uint256) {
@@ -228,7 +225,6 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
                 max = mid-1;
             }
         }
-
         return balances[_owner][min].amount[_fromType];
     }
 
@@ -378,7 +374,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return true;
     }
 
-    function createCurrentSnapshotForAddress(address addr) internal returns (Snapshot){
+    function createCurrentSnapshotForAddress(address addr) internal{
         //check memory vs. storage options
         Snapshot memory tmp;
         tmp.fromAddress = msg.sender;
