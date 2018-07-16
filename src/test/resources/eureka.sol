@@ -56,6 +56,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     uint8 public constant decimals = 18;
 
     mapping(address => Snapshot[]) balances;
+    uint256 public loyalty;
     mapping(address => mapping(address => uint256)) internal allowed;
     /* Nonces of transfers performed */
     mapping(bytes => bool) signatures;
@@ -73,7 +74,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
     // token lockups
-    mapping(address => uint256) lockups;
+    mapping(address => uint256) public lockups;
 
     // ownership
     address public owner;
@@ -108,7 +109,10 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             uint256 amount = _amounts[i];
 
             if(balances[recipient].length == 0) {
-                createCurrentSnapshotForAddress(recipient);
+                Snapshot memory tmp;
+                tmp.fromAddress = tx.origin;
+                tmp.fromBlock = uint64(block.number);
+                balances[recipient].push(tmp);
             }
             Snapshot current = balances[recipient][balances[recipient].length - 1];
             current.amount[0] = current.amount[0].add(amount);
@@ -162,7 +166,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
     function transfer(address _to, uint256 _value, uint8 _fromType) public returns (bool) {
-        doTransfer(msg.sender, _to, _value, 0, _fromType);
+        doTransfer(msg.sender, _to, _value, 0, address(0), _fromType);
         emit Transfer(msg.sender, _to, _value);
         return true;
     }
@@ -173,15 +177,16 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
     function transferFrom(address _from, address _to, uint256 _value, uint8 _fromType) public returns (bool) {
         require(_value <= allowed[_from][msg.sender]);
-        doTransfer(_from, _to, _value, 0, _fromType);
+        doTransfer(_from, _to, _value, 0, address(0), _fromType);
         allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
         emit Transfer(_from, _to, _value);
         return true;
     }
 
-    function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, uint8 _fromType) internal {
+    function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint8 _fromType) internal {
         require(_to != address(0));
-        uint256 fromValue = balanceOf(_from);
+        uint256 fromLoyalty = claim(_from);
+        uint256 fromValue = balanceOf(_from).add(fromLoyalty);
         uint256 total = _value.add(_fee);
         require(total <= fromValue);
         require(mintingDone == true);
@@ -190,12 +195,51 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             require(now >= lockups[_from]);
         }
 
-        createCurrentSnapshotForAddress(_from);
-        balances[_from][balances[_from].length - 1].amount[0] = fromValue.sub(total);
-        balances[_to][balances[_to].length - 1].amount[0] = balanceOf(_to).add(_value);
-        if(_fromType != 0) {
-            balances[_to][balances[_to].length - 1].amount[_fromType] = balanceOf(_to, _fromType).add(total);
+        Snapshot memory tmpFrom;
+        tmpFrom.fromAddress = tx.origin;
+        tmpFrom.fromBlock = uint64(block.number);
+        tmpFrom.amount[0] = fromValue.sub(total);
+        if(fromLoyalty > 0) {
+            tmpFrom.amount[1] = balanceOf(_from, 1).add(fromLoyalty);
         }
+        balances[_from].push(tmpFrom);
+
+        if(_fee > 0 && _feeAddress != address(0)) {
+            Snapshot memory tmpFee;
+            tmpFee.fromAddress = tx.origin;
+            tmpFee.fromBlock = uint64(block.number);
+            tmpFee.amount[0] = balanceOf(_feeAddress).add(_fee);
+            balances[_feeAddress].push(tmpFee);
+        }
+
+        uint256 toLoyalty = claim(_to);
+        uint256 valueTo = _value.add(toLoyalty);
+
+        if(_fromType > 1) {
+            uint256 loyaltyValue = _value.div(1000); //1 per mille
+            valueTo = valueTo.sub(loyaltyValue);
+            loyalty = loyalty.add(loyaltyValue);
+        }
+
+        Snapshot memory tmpTo;
+        tmpTo.fromAddress = tx.origin;
+        tmpTo.fromBlock = uint64(block.number);
+        tmpTo.amount[0] = balanceOf(_to).add(valueTo);
+        if(toLoyalty > 0) {
+            tmpTo.amount[1] = balanceOf(_to, 1).add(toLoyalty);
+        }
+
+        if(_fromType > 1) { //0 is the balance, 1 is the loyality
+            tmpTo.amount[_fromType] = balanceOf(_to, _fromType).add(valueTo);
+        }
+        balances[_to].push(tmpTo);
+    }
+
+    function claim(address _addr) internal returns (uint256) {
+        uint256 maxClaim = loyaltyValue.mul(balanceOf(_addr)).div(totalSupply_);
+        uint256 alreadyClaimed = balanceOf(_addr, 1);
+
+        return maxClaim - alreadyClaimed;
     }
 
     /**
@@ -333,8 +377,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         address from = Utils.recover(hashedTx, _signature);
         require(from != address(0));
 
-        doTransfer(from, _to, _value, _fee, _fromType);
-        balances[msg.sender][balances[msg.sender].length -1].amount[0] = balanceOf(msg.sender).add(_fee);
+        doTransfer(from, _to, _value, _fee, msg.sender, _fromType);
         signatures[_signature] = true;
 
         emit Transfer(from, _to, _value);
@@ -358,8 +401,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         address from = Utils.recover(hashedTx, _signature);
         require(from != address(0));
 
-        doTransfer(from, _to, _value, _fee, _fromType);
-        balances[msg.sender][balances[msg.sender].length -1].amount[0] = balanceOf(msg.sender).add(_fee);
+        doTransfer(from, _to, _value, _fee, msg.sender, _fromType);
         signatures[_signature] = true;
 
         emit Transfer(from, _to, _value);
@@ -374,11 +416,4 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return true;
     }
 
-    function createCurrentSnapshotForAddress(address addr) internal{
-        //check memory vs. storage options
-        Snapshot memory tmp;
-        tmp.fromAddress = msg.sender;
-        tmp.fromBlock = uint64(block.number);
-        balances[addr].push(tmp);
-    }
 }
