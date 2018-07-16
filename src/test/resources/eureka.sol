@@ -114,7 +114,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
                 tmp.fromBlock = uint64(block.number);
                 balances[recipient].push(tmp);
             }
-            Snapshot current = balances[recipient][balances[recipient].length - 1];
+            Snapshot storage current = balances[recipient][balances[recipient].length - 1];
             current.amount[0] = current.amount[0].add(amount);
 
             totalSupply_ = totalSupply_.add(amount);
@@ -195,7 +195,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             require(now >= lockups[_from]);
         }
 
-        Snapshot memory tmpFrom;
+        Snapshot tmpFrom;
         tmpFrom.fromAddress = tx.origin;
         tmpFrom.fromBlock = uint64(block.number);
         tmpFrom.amount[0] = fromValue.sub(total);
@@ -205,7 +205,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         balances[_from].push(tmpFrom);
 
         if(_fee > 0 && _feeAddress != address(0)) {
-            Snapshot memory tmpFee;
+            Snapshot tmpFee;
             tmpFee.fromAddress = tx.origin;
             tmpFee.fromBlock = uint64(block.number);
             tmpFee.amount[0] = balanceOf(_feeAddress).add(_fee);
@@ -221,7 +221,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             loyalty = loyalty.add(loyaltyValue);
         }
 
-        Snapshot memory tmpTo;
+        Snapshot tmpTo;
         tmpTo.fromAddress = tx.origin;
         tmpTo.fromBlock = uint64(block.number);
         tmpTo.amount[0] = balanceOf(_to).add(valueTo);
@@ -236,7 +236,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
     function claim(address _addr) internal returns (uint256) {
-        uint256 maxClaim = loyaltyValue.mul(balanceOf(_addr)).div(totalSupply_);
+        uint256 maxClaim = loyalty.mul(balanceOf(_addr)).div(totalSupply_);
         uint256 alreadyClaimed = balanceOf(_addr, 1);
 
         return maxClaim - alreadyClaimed;
