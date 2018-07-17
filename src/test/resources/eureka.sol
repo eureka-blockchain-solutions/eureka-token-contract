@@ -189,8 +189,17 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
     function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint256 _fromType) internal {
         require(_to != address(0));
-        uint256 fromLoyalty = claim(_from);
-        uint256 fromValue = balanceOf(_from).add(fromLoyalty);
+        uint256 fromLoyalty = 0;
+        uint256 toLoyalty = 0;
+        uint256 fromValue = balanceOf(_from);
+        if(_fromType > 1) {
+            fromLoyalty = claim(_from);
+            toLoyalty = claim(_to);
+            fromValue = fromValue.add(fromLoyalty);
+            _value = _value.add(toLoyalty);
+        }
+        claim(_from);
+
         uint256 total = _value.add(_fee);
         require(total <= fromValue);
         require(mintingDone == true);
@@ -204,18 +213,15 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
         fee(_fee, _feeAddress);
 
-        uint256 toLoyalty = claim(_to);
-        uint256 valueTo = _value.add(toLoyalty);
-
         if(_fromType > 1) {
-            uint256 tmpLoyalty = _value.div(1000); //1 per mille
-            valueTo = valueTo.sub(tmpLoyalty);
+            uint256 tmpLoyalty = _value.div(200); //0.5%
+            _value = _value.sub(tmpLoyalty);
             loyalty = loyalty.add(tmpLoyalty);
             emit TokensLoyalty(loyalty);
         }
 
-        to(valueTo, toLoyalty, _to, _fromType);
-        emit TokensTo(_to, valueTo);
+        to(_value, toLoyalty, _to, _fromType);
+        emit TokensTo(_to, _value);
     }
 
     function claim(address _addr) internal view returns (uint256) {
