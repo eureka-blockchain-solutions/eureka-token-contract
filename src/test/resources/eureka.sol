@@ -198,7 +198,6 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             fromValue = fromValue.add(fromLoyalty);
             _value = _value.add(toLoyalty);
         }
-        claim(_from);
 
         uint256 total = _value.add(_fee);
         require(total <= fromValue);
@@ -212,6 +211,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         emit TokensFrom(_from, fromValue);
 
         fee(_fee, _feeAddress);
+        //event is TransferPreSigned, that will be emitted after this function call
 
         if(_fromType > 1) {
             uint256 tmpLoyalty = _value.div(200); //0.5%
@@ -243,9 +243,10 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         }
         balances[_from].push(tmpFrom);
 
-        balances[_from][balances[_from].length - 1].amounts[0] = amounts0;
+        uint256 index = balances[_from].length - 1;
+        balances[_from][index].amounts[0] = amounts0;
         if(fromLoyalty > 0) {
-            balances[_from][balances[_from].length - 1].amounts[1] = amounts1;
+            balances[_from][index].amounts[1] = amounts1;
         }
     }
 
@@ -277,14 +278,15 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         }
         balances[_to].push(tmpTo);
 
-        balances[_to][balances[_to].length - 1].amounts[0] = amounts0;
+        uint256 index = balances[_to].length - 1;
+
+        balances[_to][index].amounts[0] = amounts0;
         if(toLoyalty > 0) {
-            balances[_to][balances[_to].length - 1].amounts[1] = amounts1;
+            balances[_to][index].amounts[1] = amounts1;
         }
         if(_fromType > 1) {
-            balances[_to][balances[_to].length - 1].amounts[_fromType] = amountsX;
+            balances[_to][index].amounts[_fromType] = amountsX;
         }
-
     }
 
     /**
