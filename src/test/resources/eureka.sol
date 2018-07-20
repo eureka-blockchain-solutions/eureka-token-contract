@@ -295,21 +295,25 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     * @return An uint256 representing the amount owned by the passed address.
     */
     function balanceOf(address _owner) public view returns (uint256) {
-        //return balances[_owner][balances[_owner].length - 1].amounts[0];
-        return balanceOf(_owner, 0, uint64(block.number));
+        return balanceOf(_owner, 0);
     }
 
     function balanceOf(address _owner, uint256 _fromType) public view returns (uint256) {
-        //return balances[_owner][balances[_owner].length - 1].amounts[_fromType];
-        return balanceOf(_owner, _fromType, uint64(block.number));
-    }
-
-    function balanceOf(address _owner, uint256 _fromType, uint64 _fromBlock) public view returns (uint256) {
-        // Binary search of the value in the array
-        uint min = 0;
+        //if no balances are present, the balance is 0
         if (balances[_owner].length == 0) {
             return 0;
         }
+        //return last amount
+        return balances[_owner][balances[_owner].length - 1].amounts[_fromType];
+    }
+
+    function balanceOf(address _owner, uint256 _fromType, uint64 _fromBlock) public view returns (uint256) {
+        //if no balances are present, the balance is 0
+        if (balances[_owner].length == 0) {
+            return 0;
+        }
+        // Binary search of the value in the array
+        uint min = 0;
         uint max = balances[_owner].length-1;
         while (max > min) {
             uint mid = (max + min + 1)/ 2;
@@ -321,8 +325,6 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         }
         return balances[_owner][min].amounts[_fromType];
     }
-
-
 
     /**
      * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
