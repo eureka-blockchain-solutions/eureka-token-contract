@@ -218,54 +218,58 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         require(_to != address(0));
         uint256 fromLoyalty = 0;
         uint256 toLoyalty = 0;
-        uint256 fromValue = balanceOf(_from);
+        uint256 fromBalance = balanceOf(_from);
 
         fromLoyalty = claim(_from);
         toLoyalty = claim(_to);
-        fromValue = fromValue.add(fromLoyalty);
+        fromBalance = fromBalance.add(fromLoyalty);
         uint256 toValue = _value.add(toLoyalty);
 
-        uint256 total = toValue.add(_fee);
-        require(total <= fromValue);
+        uint256 totalFromValue = toValue.add(_fee);
+        require(totalFromValue <= fromBalance);
         require(mintingDone == true);
         // check lockups
         if (lockups[_from] != 0) {
             require(now >= lockups[_from]);
         }
 
-        from(fromValue, total, fromLoyalty, _from);
-        emit TokensFrom(_from, fromValue);
+        from(fromBalance, totalFromValue, fromLoyalty, _from);
+        emit TokensFrom(_from, totalFromValue);
 
         fee(_fee, _feeAddress);
         //event is TransferPreSigned, that will be emitted after this function call
 
-        if(_fromType > 1) {
-            uint256 tmpLoyalty = toValue.div(100); //1%
+        uint256 tmpLoyalty = 0;
+        if(_fromType > 2) {
+            tmpLoyalty = toValue.div(100); //1%
             toValue = toValue.sub(tmpLoyalty);
-            loyalty = loyalty.add(tmpLoyalty);
             emit TokensLoyalty(loyalty);
         }
 
         to(toValue, _value, toLoyalty, _to, _fromType);
         emit TokensTo(_to, toValue);
+
+        if(_fromType > 2) {
+            loyalty = loyalty.add(tmpLoyalty);
+        }
     }
 
     function claim(address _addr) public view returns (uint256) {
-        uint256 maxClaim = loyalty.mul(balanceOf(_addr)).div(totalSupply_);
-        uint256 alreadyClaimed = balanceOf(_addr, 1);
-
-        return maxClaim.sub(alreadyClaimed);
+        uint256 balance = balanceOf(_addr);
+        uint256 toClaim = loyalty.sub(balanceOf(_addr, 2));
+        return toClaim.mul(balance).div(totalSupply_);
     }
 
-    function from(uint256 fromValue, uint256 total, uint256 fromLoyalty, address _from) internal {
+    function from(uint256 fromBalance, uint256 totalFromValue, uint256 fromLoyalty, address _from) internal {
         Snapshot memory tmpFrom;
         tmpFrom.fromAddress = tx.origin;
         tmpFrom.fromBlock = uint64(block.number);
-        uint256 amounts0  = fromValue.sub(total);
+        uint256 amounts0  = fromBalance.sub(totalFromValue);
 
         uint256 amounts1 = 0;
         if(fromLoyalty > 0) {
             amounts1 = balanceOf(_from, 1).add(fromLoyalty);
+            emit Transfer(address(this), _from, fromLoyalty);
         }
         balances[_from].push(tmpFrom);
 
@@ -273,6 +277,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         balances[_from][index].amounts[0] = amounts0;
         if(fromLoyalty > 0) {
             balances[_from][index].amounts[1] = amounts1;
+            balances[_from][index].amounts[2] = loyalty;
         }
     }
 
@@ -299,7 +304,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         }
 
         uint256 amountsX = 0;
-        if(_fromType > 1) { //0 is the balance, 1 is the loyality
+        if(_fromType > 2) { //0 is the balance, 1 is the loyality
             amountsX = balanceOf(_to, _fromType).add(valueToOrig);
         }
         balances[_to].push(tmpTo);
@@ -309,8 +314,9 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         balances[_to][index].amounts[0] = amounts0;
         if(toLoyalty > 0) {
             balances[_to][index].amounts[1] = amounts1;
+            balances[_to][index].amounts[2] = loyalty;
         }
-        if(_fromType > 1) {
+        if(_fromType > 2) {
             balances[_to][index].amounts[_fromType] = amountsX;
         }
     }
@@ -471,7 +477,6 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
     function transferAndCallPreSigned(bytes _signature, address _to, uint256 _value, uint256 _fee, uint256 _nonce,
         bytes _data, uint8 _fromType) public returns (bool) {
-
 
         require(signatures[_signature] == false);
 
