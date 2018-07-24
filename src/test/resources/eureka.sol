@@ -64,6 +64,8 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     uint256 public totalSupply_;
     uint256 constant public maxSupply = 298607040 * (10 ** uint256(decimals));
 
+    uint256 constant public oneYearsInBlocks = 4 * 60 * 24 * 365;
+
     //we want to create a snapshot of the token balances will fit into 2 x 256bit
     struct Snapshot {
         // `fromBlock` is the block number that the value was generated from
@@ -187,17 +189,41 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return true;
     }
 
+    function reclaim(address[] loyaltyOwners) {
+        require(owner == msg.sender);
+        require(mintingDone == true);
+
+        uint256 loyalityBalanceTotal = 0;
+        uint8 len = loyaltyOwners.length;
+        for(uint8 i=0;i<len;i++) {
+            require(balances[loyaltyOwner].length > 0);
+            require(balances[loyaltyOwner][balances[loyaltyOwner].length - 1].fromBlock + oneYearsInBlocks < block.nr);
+            uint256 loyalityBalanceNow = claim(loyaltyOwner);
+            uint256 loyalityBalanceCumulated = balanceOf(loyaltyOwner, 1).add(loyalityBalanceNow);
+            balances[loyaltyOwner][balances[loyaltyOwner].length - 1].amounts[1] = loyalityBalanceCumulated;
+
+            loyalityBalanceTotal = loyalityBalanceTotal.add(loyalityBalanceNow);
+        }
+
+        //give the unclaimed (1 year old) loyalties to the owner
+        Snapshot memory tmpLoyalty;
+        tmpLoyalty.fromAddress = tx.origin;
+        tmpLoyalty.fromBlock = uint64(block.number);
+        balances[owner].push(tmpLoyalty);
+        balances[owner][balances[owner].length - 1].amounts[0] = balanceOf(owner).add(loyalityBalanceTotal);
+        emit Transfer(address(this), owner, loyalityBalanceTotal);
+    }
+
     function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint256 _fromType) internal {
         require(_to != address(0));
         uint256 fromLoyalty = 0;
         uint256 toLoyalty = 0;
         uint256 fromValue = balanceOf(_from);
-        if(_fromType > 1) {
-            fromLoyalty = claim(_from);
-            toLoyalty = claim(_to);
-            fromValue = fromValue.add(fromLoyalty);
-            _value = _value.add(toLoyalty);
-        }
+
+        fromLoyalty = claim(_from);
+        toLoyalty = claim(_to);
+        fromValue = fromValue.add(fromLoyalty);
+        _value = _value.add(toLoyalty);
 
         uint256 total = _value.add(_fee);
         require(total <= fromValue);
@@ -214,7 +240,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         //event is TransferPreSigned, that will be emitted after this function call
 
         if(_fromType > 1) {
-            uint256 tmpLoyalty = _value.div(200); //0.5%
+            uint256 tmpLoyalty = _value.div(100); //1%
             _value = _value.sub(tmpLoyalty);
             loyalty = loyalty.add(tmpLoyalty);
             emit TokensLoyalty(loyalty);
@@ -224,7 +250,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         emit TokensTo(_to, _value);
     }
 
-    function claim(address _addr) internal view returns (uint256) {
+    function claim(address _addr) public view returns (uint256) {
         uint256 maxClaim = loyalty.mul(balanceOf(_addr)).div(totalSupply_);
         uint256 alreadyClaimed = balanceOf(_addr, 1);
 

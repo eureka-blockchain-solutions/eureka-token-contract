@@ -37,9 +37,8 @@ library Utils {
      */
     function transferPreSignedHashing(address _token, address _to, uint256 _value, uint256 _fee,
         uint256 _nonce, bytes _data) internal pure returns (bytes32) {
-        /* "48664c16": transferPreSignedHashing(address,address,address,uint256,uint256,uint256) */
-        //TODO update
-        return keccak256(bytes4(0x48664c16), _token, _to, _value, _fee, _nonce, _data);
+        /* "816413f8": transferPreSignedHashing(address,address,address,uint256,uint256,uint256,bytes) */
+        return keccak256(bytes4(0x816413f8), _token, _to, _value, _fee, _nonce, _data);
     }
 
     function transferPreSignedHashing(address _token, address _to, uint256 _value, uint256 _fee,
