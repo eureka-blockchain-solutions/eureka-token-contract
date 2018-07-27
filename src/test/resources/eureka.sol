@@ -21,30 +21,21 @@ contract ERC20 {
  *      discussion.
  */
 contract ERC677 {
-    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _data);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes4 _methodName, bytes _args);
 
-    function transferAndCall(address _to, uint _value, bytes _data) public returns (bool success);
-}
-
-/**
- * @title Receiver interface for ERC677 transferAndCall
- * @dev See https://github.com/ethereum/EIPs/issues/677 for specification and
- *      discussion.
- */
-contract ERC677Receiver {
-    function tokenFallback(address _from, uint _value, bytes _data) public;
+    function transferAndCall(address _to, uint _value, bytes4 _methodName, bytes _args) public returns (bool success);
 }
 
 contract ERC865Plus677 {
     event TransferPreSigned(address indexed _from, address indexed _to, address indexed _delegate,
         uint256 _amount, uint256 _fee);
     event TransferPreSigned(address indexed _from, address indexed _to, address indexed _delegate,
-        uint256 _amount, uint256 _fee, bytes _data);
+        uint256 _amount, uint256 _fee, bytes4 _methodName, bytes _args);
 
     function transferPreSigned(bytes _signature, address _to, uint256 _value,
         uint256 _fee, uint256 _nonce) public returns (bool);
     function transferAndCallPreSigned(bytes _signature, address _to, uint256 _value,
-        uint256 _fee, uint256 _nonce, bytes _data) public returns (bool);
+        uint256 _fee, uint256 _nonce, bytes4 _methodName, bytes _args) public returns (bool);
 }
 
 contract Eureka is ERC677, ERC20, ERC865Plus677 {
@@ -185,8 +176,8 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return transfer(_to, _value, 0);
     }
 
-    function transfer(address _to, uint256 _value, uint8 _fromType) public returns (bool) {
-        doTransfer(msg.sender, _to, _value, 0, address(0), _fromType);
+    function transfer(address _to, uint256 _value, uint8 _rewardType) public returns (bool) {
+        doTransfer(msg.sender, _to, _value, 0, address(0), _rewardType);
         emit Transfer(msg.sender, _to, _value);
         return true;
     }
@@ -195,7 +186,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return transferFrom(_from, _to, _value, 0);
     }
 
-    function transferFrom(address _from, address _to, uint256 _value, uint24 _rewardType) public returns (bool) {
+    function transferFrom(address _from, address _to, uint256 _value, uint8 _rewardType) public returns (bool) {
         require(_value <= allowed[_from][msg.sender]);
         doTransfer(_from, _to, _value, 0, address(0), _rewardType);
         allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
@@ -267,9 +258,7 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
 
-
-
-    function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint24 _rewardType) internal {
+    function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint8 _rewardType) internal {
         require(_to != address(0));
         require(mintingDone == true);
 
@@ -491,21 +480,20 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         return true;
     }
 
-    function transferAndCall(address _to, uint _value, bytes _data) public returns (bool) {
-        return transferAndCall(_to, _value, _data, 0);
+    function transferAndCall(address _to, uint _value, bytes4 _methodName, bytes _args) public returns (bool) {
+        return transferAndCall(_to, _value, 0, _methodName, _args);
     }
 
     // ERC677 functionality
-    function transferAndCall(address _to, uint _value, bytes _data, uint8 _fromType) public returns (bool) {
+    function transferAndCall(address _to, uint _value, uint8 _rewardType, bytes4 _methodName, bytes _args) public returns (bool) {
         require(mintingDone == true);
-        require(transfer(_to, _value, _fromType));
+        //require(transfer(_to, _value, _rewardType));
 
-        emit Transfer(msg.sender, _to, _value, _data);
+        emit Transfer(msg.sender, _to, _value, _methodName, _args);
 
         // call receiver
         if (Utils.isContract(_to)) {
-            ERC677Receiver receiver = ERC677Receiver(_to);
-            receiver.tokenFallback(msg.sender, _value, _data);
+            require(_to.call(_methodName, _args));
         }
         return true;
     }
@@ -536,30 +524,29 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
     function transferAndCallPreSigned(bytes _signature, address _to, uint256 _value, uint256 _fee, uint256 _nonce,
-        bytes _data) public returns (bool) {
-        return transferAndCallPreSigned(_signature, _to, _value, _fee, _nonce, _data, 0);
+        bytes4 _methodName, bytes _args) public returns (bool) {
+        return transferAndCallPreSigned(_signature, _to, _value, _fee, _nonce, 0, _methodName, _args);
     }
 
-    function transferAndCallPreSigned(bytes _signature, address _to, uint256 _value, uint256 _fee, uint256 _nonce,
-        bytes _data, uint8 _fromType) public returns (bool) {
+    function transferAndCallPreSigned(bytes _signature, address _to, uint256 _value, uint256 _fee,
+        uint256 _nonce, uint8 _rewardType, bytes4 _methodName, bytes _args) public returns (bool) {
 
         require(signatures[_signature] == false);
 
-        bytes32 hashedTx = Utils.transferPreSignedHashing(address(this), _to, _value, _fee, _nonce, _data);
+        bytes32 hashedTx = Utils.transferPreSignedHashing(address(this), _to, _value, _fee, _nonce, _methodName, _args);
         address from = Utils.recover(hashedTx, _signature);
         require(from != address(0));
 
-        doTransfer(from, _to, _value, _fee, msg.sender, _fromType);
+        doTransfer(from, _to, _value, _fee, msg.sender, _rewardType);
         signatures[_signature] = true;
 
         emit Transfer(from, _to, _value);
         emit Transfer(from, msg.sender, _fee);
-        emit TransferPreSigned(from, _to, msg.sender, _value, _fee, _data);
+        emit TransferPreSigned(from, _to, msg.sender, _value, _fee, _methodName, _args);
 
         // call receiver
         if (Utils.isContract(_to)) {
-            ERC677Receiver receiver = ERC677Receiver(_to);
-            receiver.tokenFallback(from, _value, _data);
+            require(_to.call(_methodName, _args));
         }
         return true;
     }
