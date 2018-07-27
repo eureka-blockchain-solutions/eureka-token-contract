@@ -55,30 +55,38 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     string public constant symbol = "EKA";
     uint8 public constant decimals = 18;
 
-    mapping(address => Snapshot[]) balances;
     uint256 public loyalty;
     mapping(address => mapping(address => uint256)) internal allowed;
     /* Nonces of transfers performed */
     mapping(bytes => bool) signatures;
-
+    mapping(address => AmountReward) balances;
     uint256 public totalSupply_;
     uint256 constant public maxSupply = 298607040 * (10 ** uint256(decimals));
 
     uint256 constant public oneYearsInBlocks = 4 * 60 * 24 * 365;
     uint256 constant public max88 = 2**88;
 
-    //we want to create a snapshot of the token balances will fit into 2 x 256bit
-    struct Snapshot {
-        // `fromBlock` is the block number that the value was generated from
-        uint64 fromBlock;
+    struct SnapshotReward { //256bits
+        uint48 fromBlock;
+        uint88 reward1;
+        uint88 reward2;
+        uint32 counter;
+    }
+
+    struct SnapshotAmount { //512bits
+        uint48 fromBlock;
         address fromAddress;
         //0 is regular, 1 is loyalty, rest is for accumulation
         uint88 amount; //amount type 0
         uint88 claimedLoyalty; //amount type 1
-        uint24 rewardType;
-        uint88 reward; //amount type 2
+        uint88 payedLoyalty;
+        uint24 counter;
     }
 
+    struct AmountReward {
+        mapping(address => SnapshotReward[]) rewards;
+        SnapshotAmount[] amounts;
+    }
 
     // token lockups
     mapping(address => uint256) public lockups;
@@ -117,13 +125,13 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
             address recipient = _recipients[i];
             uint256 amount = _amounts[i];
 
-            if(balances[recipient].length == 0) {
-                Snapshot memory tmp;
+            if(balances[recipient].amounts.length == 0) {
+                SnapshotAmount memory tmp;
                 tmp.fromAddress = msg.sender;
-                tmp.fromBlock = uint64(block.number);
-                balances[recipient].push(tmp);
+                tmp.fromBlock = uint48(block.number);
+                balances[recipient].amounts.push(tmp);
             }
-            Snapshot storage current = balances[recipient][balances[recipient].length - 1];
+            SnapshotAmount storage current = balances[recipient].amounts[balances[recipient].amounts.length - 1];
 
             uint256 tmpAmount = uint256(current.amount).add(amount);
             require(tmpAmount < max88);
@@ -202,9 +210,9 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         uint256 loyalityBalanceTotal = 0;
         uint8 len = uint8(loyaltyOwners.length);
         for(uint8 i=0;i<len;i++) {
-            require(balances[loyaltyOwners[i]].length > 0);
+            require(balances[loyaltyOwners[i]].amounts.length > 0);
             //give the unclaimed (1 year old) loyalties to the owner
-            require(balances[loyaltyOwners[i]][balances[loyaltyOwners[i]].length - 1].fromBlock + oneYearsInBlocks < block.number);
+            require(balances[loyaltyOwners[i]].amounts[balances[loyaltyOwners[i]].amounts.length - 1].fromBlock + oneYearsInBlocks < block.number);
             (uint256 balance, uint256 loyaltyNow) = balanceWithLoyaltyClaimOf(loyaltyOwners[i]);
             from(balance, 0, loyaltyOwners[i]);
             loyalityBalanceTotal = loyalityBalanceTotal.add(loyaltyNow);
@@ -223,48 +231,42 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
         emit TokensLoyalty(_amount);
     }
 
-    function getReward(address _owner, address _fromAddress, uint24 _rewardType) view public returns (uint256) {
-        return getReward(_owner, _fromAddress, _rewardType, block.number);
+    function rewardOf(address _owner, address _from) public view returns (uint256, uint256, uint256) {
+        //if no balances are present, the balance is 0
+        if (balances[_owner].rewards[_from].length == 0) {
+            return (0,0,0);
+        }
+        //return last amount
+        SnapshotReward memory r = balances[_owner].rewards[_from][balances[_owner].rewards[_from].length - 1];
+        return (r.reward1, r.reward2, r.counter);
     }
 
-    function getReward(address _owner, address _fromAddress, uint24 _rewardType, uint256 _fromBlock) view public returns (uint256) {
-        uint256 len = balances[_owner].length;
-        uint256 total = 0;
-        for(uint256 i=0;i<len;i++) {
-            if((balances[_owner][i].rewardType == _rewardType || _rewardType == 0) &&
-            balances[_owner][i].fromAddress == _fromAddress &&
-            balances[_owner][i].fromBlock <=  _fromBlock) {
-                total = total.add(balances[_owner][i].reward);
+    function rewardOf(address _owner, address _from, uint48 _fromBlock) public view returns (uint256, uint256, uint256) {
+        //if no balances are present, the balance is 0
+        if (balances[_owner].rewards[_from].length == 0) {
+            return (0,0,0);
+        }
+        // Binary search of the value in the array
+        //TODO: check overflow
+        uint256 min = 0;
+        uint256 max = balances[_owner].rewards[_from].length-1;
+        while (max > min) {
+            uint256 mid = (max + min + 1)/ 2;
+            if (balances[_owner].rewards[_from][mid].fromBlock<=_fromBlock) {
+                min = mid;
+            } else {
+                max = mid-1;
             }
         }
-        return total;
+        return rewardOf_internal(_owner, _from, min);
     }
 
-    function getRewardIndex(address _owner, address _fromAddress, uint24 _rewardType, uint256 _fromBlock) view public returns (uint256[]) {
-        uint256 len = balances[_owner].length;
-        uint256[] total;
-        for(uint256 i=0;i<len;i++) {
-            if((balances[_owner][i].rewardType == _rewardType || _rewardType == 0) &&
-            balances[_owner][i].fromAddress == _fromAddress &&
-            balances[_owner][i].fromBlock <=  _fromBlock) {
-                total.push(i);
-            }
-        }
-        return total;
+    function rewardOf_internal(address _owner, address _from, uint256 _index) internal view returns (uint256, uint256, uint256) {
+        SnapshotReward memory sr = balances[_owner].rewards[_from][_index];
+        return (sr.reward1, sr.reward2, sr.counter);
     }
 
-    function getReward(address _owner, address _fromAddress, uint24 _rewardType, uint256 _fromBlock, uint256[] index) view public returns (uint256) {
-        uint256 len = index.length;
-        uint256 total = 0;
-        for(uint256 i=0;i<len;i++) {
-            if((balances[_owner][index[i]].rewardType == _rewardType || _rewardType == 0) &&
-            balances[_owner][index[i]].fromAddress == _fromAddress &&
-            balances[_owner][index[i]].fromBlock <=  _fromBlock) {
-                total = total.add(balances[_owner][index[i]].reward);
-            }
-        }
-        return total;
-    }
+
 
 
     function doTransfer(address _from, address _to, uint256 _value, uint256 _fee, address _feeAddress, uint24 _rewardType) internal {
@@ -314,44 +316,65 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
     }
 
     function from(uint256 _fromBalance, uint256 _totalValue, address _fromAddress) internal {
-        Snapshot memory tmpFrom;
+        SnapshotAmount memory tmpFrom;
         tmpFrom.fromAddress = msg.sender;
-        tmpFrom.fromBlock = uint64(block.number);
+        tmpFrom.fromBlock = uint48(block.number);
         require(loyalty < max88);
         tmpFrom.claimedLoyalty = uint88(loyalty);
         uint256 amount = _fromBalance.sub(_totalValue);
         require(amount < max88);
         tmpFrom.amount = uint88(amount);
-        balances[_fromAddress].push(tmpFrom);
+        balances[_fromAddress].amounts.push(tmpFrom);
     }
 
     function fee(uint256 _fee, address _feeAddress) internal {
         if(_fee > 0 && _feeAddress != address(0)) {
-            Snapshot memory tmpFee;
+            SnapshotAmount memory tmpFee;
             tmpFee.fromAddress = msg.sender;
-            tmpFee.fromBlock = uint64(block.number);
+            tmpFee.fromBlock = uint48(block.number);
             require(loyalty < max88);
             tmpFee.claimedLoyalty = uint88(loyalty); //the fee claimer cannot claim loyalty
             uint256 amount = balanceOf(_feeAddress).add(_fee);
             require(amount < max88);
             tmpFee.amount = uint88(amount);
-            balances[_feeAddress].push(tmpFee);
+            balances[_feeAddress].amounts.push(tmpFee);
         }
     }
 
     function to(uint256 _toBalance, uint256 _totalValue, uint256 _reward, uint24 _rewardType, address _toAddress) internal {
-        Snapshot memory tmpTo;
+        SnapshotAmount memory tmpTo;
         tmpTo.fromAddress = msg.sender;
-        tmpTo.fromBlock = uint64(block.number);
+        tmpTo.fromBlock = uint48(block.number);
         require(loyalty < max88);
         tmpTo.claimedLoyalty = uint88(loyalty);
         uint256 amount = _toBalance.add(_totalValue);
         require(amount < max88);
         tmpTo.amount = uint88(amount);
-        tmpTo.rewardType = _rewardType;
-        require(_reward < max88);
-        tmpTo.reward = uint88(_reward); //no accumulation! Needs to be done off-chain
-        balances[_toAddress].push(tmpTo);
+        balances[_toAddress].amounts.push(tmpTo);
+
+        if(_rewardType > 0) {
+            SnapshotReward memory sr;
+            sr.fromBlock = uint48(block.number);
+            sr.reward1 = balances[_toAddress].rewards[msg.sender][balances[_toAddress].rewards[msg.sender].length - 1].reward1;
+            sr.reward2 = balances[_toAddress].rewards[msg.sender][balances[_toAddress].rewards[msg.sender].length - 1].reward2;
+            sr.counter = balances[_toAddress].rewards[msg.sender][balances[_toAddress].rewards[msg.sender].length - 1].counter;
+
+            uint256 total = 0;
+            if(_rewardType == 1) {
+                total =  _reward.add(sr.reward1);
+                require(total < max88);
+                sr.reward1 = uint88(total);
+            } else if(_rewardType == 2) {
+                total =  _reward.add(sr.reward2);
+                require(total < max88);
+                sr.reward2 = uint88(total);
+            } else {
+                if(uint32(sr.counter + 1) > 0) { //it will always stay at max, don't overflow
+                    sr.counter = uint32(sr.counter + 1);
+                }
+            }
+            balances[_toAddress].rewards[msg.sender].push(sr);
+        }
     }
 
     /**
@@ -365,25 +388,25 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
     function balanceOf(address _owner, bool _amountType) public view returns (uint256) {
         //if no balances are present, the balance is 0
-        if (balances[_owner].length == 0) {
+        if (balances[_owner].amounts.length == 0) {
             return 0;
         }
         //return last amount
-        return balanceOf0(_owner, _amountType, balances[_owner].length - 1);
+        return balanceOf0(_owner, _amountType, balances[_owner].amounts.length - 1);
     }
 
     function balanceOf(address _owner, bool _amountType, uint64 _fromBlock) public view returns (uint256) {
         //if no balances are present, the balance is 0
-        if (balances[_owner].length == 0) {
+        if (balances[_owner].amounts.length == 0) {
             return 0;
         }
         // Binary search of the value in the array
         //TODO: check overflow
         uint256 min = 0;
-        uint256 max = balances[_owner].length-1;
+        uint256 max = balances[_owner].amounts.length-1;
         while (max > min) {
             uint256 mid = (max + min + 1)/ 2;
-            if (balances[_owner][mid].fromBlock<=_fromBlock) {
+            if (balances[_owner].amounts[mid].fromBlock<=_fromBlock) {
                 min = mid;
             } else {
                 max = mid-1;
@@ -394,9 +417,9 @@ contract Eureka is ERC677, ERC20, ERC865Plus677 {
 
     function balanceOf0(address _owner, bool _amountType, uint256 _index) internal view returns (uint256) {
         if(_amountType) {
-            return balances[_owner][_index].amount;
+            return balances[_owner].amounts[_index].amount;
         } else {
-            return balances[_owner][_index].claimedLoyalty;
+            return balances[_owner].amounts[_index].claimedLoyalty;
         }
     }
 
