@@ -19,14 +19,19 @@ contract ERC20 {
  * @title ERC677 transferAndCall token interface
  * @dev See https://github.com/ethereum/EIPs/issues/677 for specification and
  *      discussion.
+ *
+ * We deviate from the specification and we don't define a tokenfallback. That menas
+ * tranferAndCall can specify the function to call (bytes4(sha3("setN(uint256)")))
+ * and its arguments, and the respective function is called.
+ * TODO: find out what happens if the function is not found. Will the default function
+ * be called, or will the function return false?
+ *
+ * We also deviate from ERC865 and added a pre signed transaction for transferAndCall.
  */
-contract ERC677 {
+contract ERC865Plus677ish {
     event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes4 _methodName, bytes _args);
-
     function transferAndCall(address _to, uint _value, bytes4 _methodName, bytes _args) public returns (bool success);
-}
 
-contract ERC865Plus677 {
     event TransferPreSigned(address indexed _from, address indexed _to, address indexed _delegate,
         uint256 _amount, uint256 _fee);
     event TransferPreSigned(address indexed _from, address indexed _to, address indexed _delegate,
@@ -38,7 +43,7 @@ contract ERC865Plus677 {
         uint256 _fee, uint256 _nonce, bytes4 _methodName, bytes _args) public returns (bool);
 }
 
-contract Eureka is ERC677, ERC20, ERC865Plus677 {
+contract Eureka is ERC20, ERC865Plus677ish {
 
     using SafeMath for uint256;
 
