@@ -492,13 +492,13 @@ contract Eureka is ERC20, ERC865Plus677ish {
     // ERC677 functionality
     function transferAndCall(address _to, uint _value, uint8 _rewardType, bytes4 _methodName, bytes _args) public returns (bool) {
         require(mintingDone == true);
-        //require(transfer(_to, _value, _rewardType));
+        require(transfer(_to, _value, _rewardType));
 
         emit Transfer(msg.sender, _to, _value, _methodName, _args);
 
         // call receiver
         if (Utils.isContract(_to)) {
-            require(_to.call(_methodName, _args));
+            require(_to.call(_methodName, _value, _args));
         }
         return true;
     }
@@ -551,7 +551,7 @@ contract Eureka is ERC20, ERC865Plus677ish {
 
         // call receiver
         if (Utils.isContract(_to)) {
-            require(_to.call(_methodName, _args));
+            require(_to.call(_methodName, _value, _fee, _args));
         }
         return true;
     }
