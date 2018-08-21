@@ -1,9 +1,9 @@
 package io.iconator.testcontract;
 
-import io.iconator.testrpcj.Contract;
-import io.iconator.testrpcj.DeployedContract;
-import io.iconator.testrpcj.Event;
-import io.iconator.testrpcj.TestBlockchain;
+import io.iconator.testonator.Contract;
+import io.iconator.testonator.DeployedContract;
+import io.iconator.testonator.Event;
+import io.iconator.testonator.TestBlockchain;
 import org.ethereum.crypto.cryptohash.Keccak256;
 import org.junit.After;
 import org.junit.Assert;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static io.iconator.testrpcj.TestBlockchain.*;
+import static io.iconator.testonator.TestBlockchain.*;
 
 public class TestRemoteCall {
 

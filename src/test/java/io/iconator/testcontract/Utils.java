@@ -1,13 +1,13 @@
 package io.iconator.testcontract;
 
-import io.iconator.testrpcj.Contract;
+import io.iconator.testonator.Contract;
 import org.junit.Assert;
 
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import static io.iconator.testrpcj.TestBlockchain.compile;
+import static io.iconator.testonator.TestBlockchain.compile;
 
 public class Utils {
 
