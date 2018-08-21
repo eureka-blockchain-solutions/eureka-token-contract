@@ -30,7 +30,7 @@ contract ERC20 {
  */
 contract ERC865Plus677ish {
     event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes4 _methodName, bytes _args);
-    function transferAndCall(address _to, uint _value, bytes4 _methodName, bytes _args) public returns (bool success);
+    function transferAndCall(address _to, uint256 _value, bytes4 _methodName, bytes _args) public returns (bool success);
 
     event TransferPreSigned(address indexed _from, address indexed _to, address indexed _delegate,
         uint256 _amount, uint256 _fee);
@@ -454,7 +454,7 @@ contract Eureka is ERC20, ERC865Plus677ish {
      * @param _spender The address which will spend the funds.
      * @param _addedValue The amount of tokens to increase the allowance by.
      */
-    function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
+    function increaseApproval(address _spender, uint256 _addedValue) public returns (bool) {
         require(mintingDone == true);
 
         allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
@@ -472,10 +472,10 @@ contract Eureka is ERC20, ERC865Plus677ish {
      * @param _spender The address which will spend the funds.
      * @param _subtractedValue The amount of tokens to decrease the allowance by.
      */
-    function decreaseApproval(address _spender, uint _subtractedValue) public returns (bool) {
+    function decreaseApproval(address _spender, uint256 _subtractedValue) public returns (bool) {
         require(mintingDone == true);
 
-        uint oldValue = allowed[msg.sender][_spender];
+        uint256 oldValue = allowed[msg.sender][_spender];
         if (_subtractedValue > oldValue) {
             allowed[msg.sender][_spender] = 0;
         } else {
@@ -485,26 +485,25 @@ contract Eureka is ERC20, ERC865Plus677ish {
         return true;
     }
 
-    function transferAndCall(address _to, uint _value, bytes4 _methodName, bytes _args) public returns (bool) {
+    function transferAndCall(address _to, uint256 _value, bytes4 _methodName, bytes _args) public returns (bool) {
         return transferAndCall(_to, _value, 0, _methodName, _args);
     }
 
     // ERC677 functionality
-    function transferAndCall(address _to, uint _value, uint8 _rewardType, bytes4 _methodName, bytes _args) public returns (bool) {
+    function transferAndCall(address _to, uint256 _value, uint8 _rewardType, bytes4 _methodName, bytes _args) public returns (bool) {
         require(mintingDone == true);
-        require(transfer(_to, _value, _rewardType));
+        //require(transfer(_to, _value, _rewardType));
 
         emit Transfer(msg.sender, _to, _value, _methodName, _args);
 
         // call receiver
         if (Utils.isContract(_to)) {
-            require(_to.call(_methodName, _value, _args));
+            require(_to.call(_methodName, msg.sender, _value, _args));
         }
         return true;
     }
 
     //ERC 865 + delegate transfer and call
-
     function transferPreSigned(bytes _signature, address _to, uint256 _value, uint256 _fee,
         uint256 _nonce) public returns (bool) {
         return transferPreSigned(_signature, _to, _value, _fee, _nonce, 0);
@@ -551,7 +550,7 @@ contract Eureka is ERC20, ERC865Plus677ish {
 
         // call receiver
         if (Utils.isContract(_to)) {
-            require(_to.call(_methodName, _value, _fee, _args));
+            require(_to.call(_methodName, from, _value, _args));
         }
         return true;
     }

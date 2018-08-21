@@ -19,9 +19,9 @@ public class Utils {
         }
         File contractFile1 = Paths.get(ClassLoader.getSystemResource("SafeMath.sol").toURI()).toFile();
         File contractFile2 = Paths.get(ClassLoader.getSystemResource("Utils.sol").toURI()).toFile();
-        File contractFile3 = Paths.get(ClassLoader.getSystemResource("eureka.sol").toURI()).toFile();
+        File contractFile3 = Paths.get(ClassLoader.getSystemResource("Eureka.sol").toURI()).toFile();
         Map<String, Contract> contracts = compile(contractFile3, contractFile1, contractFile2);
-        Assert.assertEquals(7, contracts.size());
+        Assert.assertEquals(5, contracts.size());
         for(String name:contracts.keySet()) {
             System.out.println("Available contract names: " + name);
         }
