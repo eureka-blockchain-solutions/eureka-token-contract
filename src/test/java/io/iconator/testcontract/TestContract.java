@@ -1,9 +1,9 @@
 package io.iconator.testcontract;
 
-import io.iconator.testrpcj.Contract;
-import io.iconator.testrpcj.DeployedContract;
-import io.iconator.testrpcj.Event;
-import io.iconator.testrpcj.TestBlockchain;
+import io.iconator.testonator.Contract;
+import io.iconator.testonator.DeployedContract;
+import io.iconator.testonator.Event;
+import io.iconator.testonator.TestBlockchain;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static io.iconator.testrpcj.TestBlockchain.*;
+import static io.iconator.testonator.TestBlockchain.*;
 
 //in case of module error message, see:
 //https://intellij-support.jetbrains.com/hc/en-us/community/posts/360000162670-In-2018-1-1-version-Problem-with-Error-cannot-start-process-the-working-directory-idea-modules-does-not-exist-?page=1#community_comment_360000142650

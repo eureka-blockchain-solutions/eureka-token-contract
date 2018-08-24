@@ -1,7 +1,7 @@
 package io.iconator.testcontract;
 
-import io.iconator.testrpcj.Contract;
-import io.iconator.testrpcj.TestBlockchain;
+import io.iconator.testonator.Contract;
+import io.iconator.testonator.TestBlockchain;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;

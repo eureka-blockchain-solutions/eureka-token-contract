@@ -1,12 +1,21 @@
 package io.iconator.testcontract;
 
 import io.iconator.testonator.Contract;
+import org.ethereum.crypto.cryptohash.Keccak256;
 import org.junit.Assert;
+import org.web3j.abi.FunctionEncoder;
+import org.web3j.abi.datatypes.*;
+import org.web3j.abi.datatypes.generated.Uint256;
+import org.web3j.utils.Numeric;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
+import static io.iconator.testonator.TestBlockchain.CREDENTIAL_2;
+import static io.iconator.testonator.TestBlockchain.CREDENTIAL_3;
 import static io.iconator.testonator.TestBlockchain.compile;
 
 public class Utils {
@@ -28,4 +37,6 @@ public class Utils {
         Utils.contracts = contracts;
         return contracts;
     }
+
+
 }

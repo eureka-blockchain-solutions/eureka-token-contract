@@ -57,17 +57,12 @@ public class TestRemoteCall {
         mint(dcEureka);
 
         //in order to call function someName(address _from, uint256 _value, bool _testBoolean, string _testString, address[] _testArray)
-        //we need to find the function hash first, use keccak for the signature: someName(address,uint256,bool,string,address[]) -> aef6af1c
-        // with no arguments: "fac42a59": "someName(address,uint256)"
-
-        byte[] hash = new Keccak256().digest("someName(address,uint256)".getBytes());
-        byte[] name = new byte[4];
-        System.arraycopy(hash, 0, name, 0, 4);
-        String methodName = Numeric.toHexString(name);
+        //we need to find the function hash first, use keccak for the signature: someName(address,uint256) -> fac42a59
+        String methodName = io.iconator.testonator.Utils.functionHash("someName(address,uint256)");
         System.out.println("method name: "+methodName);
 
         List<Event> result = blockchain.call(CREDENTIAL_1, dcEureka, "transferAndCall", dcTest.contractAddress(), new BigInteger("100"), Numeric.hexStringToByteArray(methodName), new byte[0]);
-        Assert.assertEquals(2, result.size());
+        Assert.assertEquals(3, result.size());
         System.out.println(result.size());
     }
 
@@ -80,23 +75,19 @@ public class TestRemoteCall {
         mint(dcEureka);
 
         //in order to call function someName(address _from, uint256 _value, bool _testBoolean, string _testString, address[] _testArray)
-        //we need to find the function hash first, use keccak for the signature: someName(address,uint256,bool,string,address[]) -> aef6af1c
-        // with one arguments:  "a67045bf": "someName(address,uint256,uint256)"
-
-        byte[] hash = new Keccak256().digest("someName(address,uint256,uint256)".getBytes());
-        byte[] name = new byte[4];
-        System.arraycopy(hash, 0, name, 0, 4);
-        String methodName = Numeric.toHexString(name);
+        //we need to find the function hash first, use keccak for the signature: someName(address,uint256,uint256) -> a67045bf
+        String methodName = io.iconator.testonator.Utils.functionHash("someName(address,uint256,uint256)");
         System.out.println("method name: "+methodName);
 
-        List<Type> params = new ArrayList<Type>();
-        params.add(new Uint256(new BigInteger("1234")));
-        String encoded = FunctionEncoder.encodeConstructor(params);
-        //parameters: 00000000000000000000000000000000000000000000000000000000000004d2
+        String encoded = io.iconator.testonator.Utils.encodeParameters(new Uint256(new BigInteger("1234")));
         System.out.println("parameters: "+encoded);
 
         List<Event> result = blockchain.call(CREDENTIAL_1, dcEureka, "transferAndCall", dcTest.contractAddress(), new BigInteger("100"), Numeric.hexStringToByteArray(methodName), Numeric.hexStringToByteArray(encoded));
-        Assert.assertEquals(2, result.size());
+        Assert.assertEquals(3, result.size());
+        Uint256 u1 = (Uint256) result.get(2).values().get(2);
+        Uint256 u2 = (Uint256) result.get(2).values().get(3);
+        Assert.assertEquals(new Uint256(new BigInteger("100")).getValue(), u1.getValue());
+        Assert.assertEquals(new Uint256(new BigInteger("1234")).getValue(), u2.getValue());
         System.out.println(result.size());
     }
 
@@ -110,30 +101,24 @@ public class TestRemoteCall {
 
         //in order to call function someName(address _from, uint256 _value, bool _testBoolean, string _testString, address[] _testArray)
         //we need to find the function hash first, use keccak for the signature: someName(address,uint256,bool,string,address[]) -> aef6af1c
-        // with no arguments: "fac42a59": "someName(address,uint256)"
-
-        byte[] hash = new Keccak256().digest("someName(address,uint256,bool,string,address[])".getBytes());
-        byte[] name = new byte[4];
-        System.arraycopy(hash, 0, name, 0, 4);
-        String methodName = Numeric.toHexString(name);
+        String methodName = io.iconator.testonator.Utils.functionHash("someName(address,uint256,bool,string,address[])");
         System.out.println("method name: "+methodName);
 
         List<Type> params = new ArrayList<Type>();
-        params.add(new Bool(true));
-        params.add(new Utf8String("testme"));
-        List<Type> addresses = new ArrayList<Type>();
-        addresses.add(new Address(CREDENTIAL_2.getAddress()));
-        addresses.add(new Address(CREDENTIAL_3.getAddress()));
-        params.add(new DynamicArray(addresses));
-        String encoded = FunctionEncoder.encodeConstructor(params);
-        //parameters: 000000000000000000000000cb14cf291bfd9dc1f4c78dba1e35cffd8ecf85f800000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c70df86c15e05817f1173274f886f9d7154da41b00000000000000000000000048ae229972260fa8628ce888c3f3ba11b83eae87
-        System.out.println("parameters: "+encoded);
 
+        String encoded = io.iconator.testonator.Utils.encodeParameters(
+                new Bool(true),
+                new Utf8String("testme"),
+                io.iconator.testonator.Utils.createArray(
+                        new Address(CREDENTIAL_2.getAddress()),
+                        new Address(CREDENTIAL_3.getAddress()))
+        );
+        System.out.println("parameters: "+encoded);
 
         List<Event> result = blockchain.call(CREDENTIAL_1, dcEureka, "transferAndCall", dcTest.contractAddress(), new BigInteger("100"), Numeric.hexStringToByteArray(methodName), Numeric.hexStringToByteArray(encoded));
 
-        Assert.assertEquals(2, result.size());
-        //Assert.assertEquals("testme", result.get(1).values().get(3).toString().trim());
+        Assert.assertEquals(3, result.size());
+        Assert.assertEquals("testme", result.get(2).values().get(3).toString().trim());
         System.out.println(result.size());
     }
 
@@ -151,7 +136,7 @@ public class TestRemoteCall {
         List<Event> result1 = blockchain.call(dc, "mint", addresses, values);
 
         Assert.assertEquals(2, result1.size());
-        Assert.assertEquals(new BigInteger("20000"), result1.get(0).values().get(2).getValue());
+        Assert.assertEquals(new BigInteger("20000"), result1.get(1).values().get(2).getValue());
 
         List<Event> result2 = blockchain.call(dc, "finishMinting");
     }
