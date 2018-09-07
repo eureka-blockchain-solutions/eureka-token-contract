@@ -79,7 +79,7 @@ public class TestRemoteCall {
         String methodName = io.iconator.testonator.Utils.functionHash("someName(address,uint256,uint256)");
         System.out.println("method name: "+methodName);
 
-        String encoded = io.iconator.testonator.Utils.encodeParameters(new Uint256(new BigInteger("1234")));
+        String encoded = io.iconator.testonator.Utils.encodeParameters(2, new Uint256(new BigInteger("1234")));
         System.out.println("parameters: "+encoded);
 
         List<Event> result = blockchain.call(CREDENTIAL_1, dcEureka, "transferAndCall", dcTest.contractAddress(), new BigInteger("100"), Numeric.hexStringToByteArray(methodName), Numeric.hexStringToByteArray(encoded));
@@ -106,7 +106,7 @@ public class TestRemoteCall {
 
         List<Type> params = new ArrayList<Type>();
 
-        String encoded = io.iconator.testonator.Utils.encodeParameters(
+        String encoded = io.iconator.testonator.Utils.encodeParameters(2,
                 new Bool(true),
                 new Utf8String("testme"),
                 io.iconator.testonator.Utils.createArray(

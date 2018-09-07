@@ -10,11 +10,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.web3j.abi.datatypes.Type;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +74,7 @@ public class TestContract {
     public void testMint() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         DeployedContract dc = blockchain.deploy(CREDENTIAL_0, "Eureka", contracts);
         List<Event> events = mint(dc);
-        Assert.assertEquals(2, events.size());
+        Assert.assertEquals(6, events.size());
         Assert.assertEquals(new BigInteger("10000"), events.get(0).values().get(2).getValue());
     }
 

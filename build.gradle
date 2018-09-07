@@ -15,6 +15,6 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
-    testCompile 'io.iconator:testonator:1.0.24'
+    testCompile 'io.iconator:testonator:1.0.25'
     testCompile 'junit:junit:4.12'
 }
