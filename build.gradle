@@ -2,19 +2,13 @@ plugins {
     id 'java'
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 repositories {
     mavenLocal()
     mavenCentral()
     maven { url 'https://dl.bintray.com/ethereum/maven/' }
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 dependencies {
-    testCompile 'io.iconator:testonator:1.0.25'
+    testCompile 'io.iconator:testonator:1.0.28'
     testCompile 'junit:junit:4.12'
 }

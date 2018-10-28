@@ -1,15 +1,11 @@
 package io.iconator.testcontract;
 
-import io.iconator.testonator.Contract;
-import io.iconator.testonator.DeployedContract;
+import io.iconator.testonator.*;
 import io.iconator.testonator.Event;
-import io.iconator.testonator.TestBlockchain;
-import org.ethereum.crypto.cryptohash.Keccak256;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.*;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.utils.Numeric;
@@ -34,7 +30,7 @@ public class TestRemoteCall {
     @BeforeClass
     public static void setup() throws Exception {
         blockchain = TestBlockchain.run();
-        contracts = Utils.setup();
+        contracts = TestUtils.setup();
 
         //compile test receiving contract
         File contractFile = Paths.get(ClassLoader.getSystemResource("TestSomeContract.sol").toURI()).toFile();
@@ -49,7 +45,7 @@ public class TestRemoteCall {
     }
 
     @Test
-    public void testCallNoArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public void testCallNoArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, ConvertException {
         DeployedContract dcEureka = blockchain.deploy(CREDENTIAL_0, contracts.get("Eureka"));
         DeployedContract dcTest = blockchain.deploy(CREDENTIAL_0, contracts.get("TestSomeContract"));
         dcEureka.addReferencedContract(dcTest.contract());
@@ -67,7 +63,7 @@ public class TestRemoteCall {
     }
 
     @Test
-    public void testCallSimpleArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public void testCallSimpleArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, ConvertException {
         DeployedContract dcEureka = blockchain.deploy(CREDENTIAL_0, contracts.get("Eureka"));
         DeployedContract dcTest = blockchain.deploy(CREDENTIAL_0, contracts.get("TestSomeContract"));
         dcEureka.addReferencedContract(dcTest.contract());
@@ -92,7 +88,7 @@ public class TestRemoteCall {
     }
 
     @Test
-    public void testCallComplexArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public void testCallComplexArgs() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, ConvertException {
         DeployedContract dcEureka = blockchain.deploy(CREDENTIAL_0, contracts.get("Eureka"));
         DeployedContract dcTest = blockchain.deploy(CREDENTIAL_0, contracts.get("TestSomeContract"));
         dcEureka.addReferencedContract(dcTest.contract());
@@ -122,7 +118,7 @@ public class TestRemoteCall {
         System.out.println(result.size());
     }
 
-    private void mint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+    private void mint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, ConvertException {
         List<String> addresses = new ArrayList<>();
         List<BigInteger> values = new ArrayList<>();
 

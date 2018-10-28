@@ -62,25 +62,25 @@ contract Eureka is ERC20, ERC865Plus677ish {
     uint256 constant public oneYearsInBlocks = 4 * 60 * 24 * 365;
     uint256 constant public max88 = 2**88;
 
-    struct SnapshotReward { //256bits
-        uint48 fromBlock;
+    struct Reward { //256bits
         uint88 reward1;
         uint88 reward2;
+        uint32 counter1;
+        uint32 counter2;
+        uint16 counter3;
+    }
+
+    struct SnapshotAmount { //256bits
+        uint48 fromBlock;
+        uint88 amount;
+        uint88 claimedLoyalty;
         uint32 counter;
     }
 
-    struct SnapshotAmount { //512bits
-        uint48 fromBlock;
-        address fromAddress;
-        //0 is regular, 1 is loyalty, rest is for accumulation
-        uint88 amount; //amount type 0
-        uint88 claimedLoyalty; //amount type 1
-        uint88 payedLoyalty;
-        uint24 counter;
-    }
-
     struct AmountReward {
-        mapping(address => SnapshotReward[]) rewards;
+        //no snapshot features, that means no history in smart contract
+        //available
+        mapping(address => Reward) rewards;
         SnapshotAmount[] amounts;
     }
 

@@ -1,9 +1,6 @@
 package io.iconator.testcontract;
 
-import io.iconator.testonator.Contract;
-import io.iconator.testonator.DeployedContract;
-import io.iconator.testonator.Event;
-import io.iconator.testonator.TestBlockchain;
+import io.iconator.testonator.*;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -30,7 +27,7 @@ public class TestContract {
     @BeforeClass
     public static void setup() throws Exception {
         blockchain = TestBlockchain.run();
-        contracts = Utils.setup();
+        contracts = TestUtils.setup();
     }
 
     @After
@@ -39,7 +36,7 @@ public class TestContract {
     }
 
     @Test
-    public void testContract() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+    public void testContract() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, ConvertException {
         DeployedContract dc = blockchain.deploy(CREDENTIAL_0, contracts.get("Eureka"));
         Type t1 = blockchain.callConstant(dc, "name").get(0);
         Type t2 = blockchain.callConstant(dc, "symbol").get(0);
@@ -52,7 +49,7 @@ public class TestContract {
         Assert.assertEquals(new BigInteger("298607040000000000000000000"), t4.getValue());
     }
 
-    private List<Event> mint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+    private List<Event> mint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, ConvertException {
         List<String> addresses = new ArrayList<>();
         List<BigInteger> values = new ArrayList<>();
 
@@ -66,12 +63,12 @@ public class TestContract {
         return blockchain.call(dc, "mint", addresses, values);
     }
 
-    private List<Event> finishMint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+    private List<Event> finishMint(DeployedContract dc) throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, ConvertException {
         return blockchain.call(dc, "finishMinting");
     }
 
     @Test
-    public void testMint() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+    public void testMint() throws InterruptedException, ExecutionException, IOException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, ConvertException {
         DeployedContract dc = blockchain.deploy(CREDENTIAL_0, "Eureka", contracts);
         List<Event> events = mint(dc);
         Assert.assertEquals(6, events.size());
@@ -79,7 +76,7 @@ public class TestContract {
     }
 
     @Test
-    public void testBalance() throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+    public void testBalance() throws NoSuchMethodException, InterruptedException, ExecutionException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, ConvertException {
         DeployedContract dc = blockchain.deploy(CREDENTIAL_0, "Eureka", contracts);
         List<Event> events = mint(dc);
         List<Type> result = blockchain.callConstant(dc, "balanceOf", CREDENTIAL_1.getAddress());
@@ -87,7 +84,7 @@ public class TestContract {
     }
 
     @Test
-    public void testTransfer() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public void testTransfer() throws InterruptedException, ExecutionException, IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, ConvertException {
         DeployedContract dc = blockchain.deploy(CREDENTIAL_0, "Eureka", contracts);
         List<Event> events1 = mint(dc);
         List<Event> events2 = finishMint(dc);
